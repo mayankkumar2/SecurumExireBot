@@ -130,7 +130,7 @@ func main() {
 				fmt.Println("Block the endpoint: ",text)
 				RespondCallbackQuery(u.CallbackQuery.ID, "Signaling server reported of the action to take")
 				var usr UserModel
-				var err = DB.Where("chat_id", u.Message.Chat.ID).First(&usr).Error
+				var err = DB.Where("chat_id", u.CallbackQuery.Message.Chat.ID).First(&usr).Error
 				if err != nil {
 					SendMessage(u.CallbackQuery.Message.Chat.ID, "Oops! something went wrong!")
 					return
