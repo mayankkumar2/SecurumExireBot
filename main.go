@@ -18,6 +18,7 @@ import (
 const (
 	StartCommand int = iota
 	MeCommand
+	ReKeyCommand
 
 )
 
@@ -105,9 +106,24 @@ func main() {
 			s := fmt.Sprintf("Hey! your UID is %s and secret key is %s", usr.UserID.String(), usr.AuthKey)
 			SendMessage(u.Message.Chat.ID, s)
 			fmt.Println(text)
+		} else if command == ReKeyCommand {
+			var usr UserModel
+			var err = DB.First(&usr).Where("chat_id", u.Message.Chat.ID).Error
+			if err != nil {
+				SendMessage(u.Message.Chat.ID, "Oops! something went wrong!")
+				return
+			}
+			usr.AuthKey = GenerateUUID()
+			usr.WebHook = ""
+			usr.AuthorizationPayload = ""
+			if err := DB.Updates(&usr).Error; err != nil {
+				SendMessage(u.Message.Chat.ID, "Oops! something went wrong!")
+				return
+			}
+			s := fmt.Sprintf("Hey! your UID is %s and secret key is %s", usr.UserID.String(), usr.AuthKey)
+			SendMessage(u.Message.Chat.ID, s)
+			fmt.Println(text)
 		}
-
-
 	})
 
 	fmt.Println("listening at port... " + port)
@@ -124,14 +140,21 @@ var startCommandLen = len(startCommand)
 
 var meCommand = "/me"
 var meCommandLen = len(meCommand)
+
+var reKeyCommand = "/reKey"
+var reKeyCommandLen = len(reKeyCommand)
+
 func ParseCommand(text string) (int, string) {
 	startCommandRegex, _ := regexp.Compile("^/start")
 	meCommandRegex, _ := regexp.Compile("^/me")
+	reKeyCommandRegex, _ := regexp.Compile("^/reKey")
 
 	if startCommandRegex.MatchString(text) {
 		return StartCommand, text[startCommandLen:]
 	} else if meCommandRegex.MatchString(text) {
 		return MeCommand, text[meCommandLen:]
+	} else if reKeyCommandRegex.MatchString(text) {
+		return ReKeyCommand, text[reKeyCommandLen:]
 	}
 
 	return -1, ""
