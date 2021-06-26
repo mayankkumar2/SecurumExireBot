@@ -16,7 +16,9 @@ import (
 )
 
 const (
-	StartCommand int = 1
+	StartCommand int = iota
+	MeCommand
+
 )
 
 var DB *gorm.DB
@@ -76,8 +78,6 @@ func main() {
 		if err := json.NewDecoder(r.Body).Decode(&u); err != nil {
 			return
 		}
-
-
 		fmt.Println("Received:", u)
 
 		command, text := ParseCommand(u.Message.Text)
@@ -93,6 +93,16 @@ func main() {
 				return
 			}
 			s := fmt.Sprintf("Hey! your UID is %s and secret key is %s", c.UserID.String(), c.AuthKey)
+			SendMessage(u.Message.Chat.ID, s)
+			fmt.Println(text)
+		} else if command == MeCommand {
+			var usr UserModel
+			var err = DB.First(&usr).Where("chat_id", u.Message.Chat.ID).Error
+			if err != nil {
+				SendMessage(u.Message.Chat.ID, "Oops! something went wrong!")
+				return
+			}
+			s := fmt.Sprintf("Hey! your UID is %s and secret key is %s", usr.UserID.String(), usr.AuthKey)
 			SendMessage(u.Message.Chat.ID, s)
 			fmt.Println(text)
 		}
@@ -112,11 +122,16 @@ func main() {
 var startCommand = "/start"
 var startCommandLen = len(startCommand)
 
-
+var meCommand = "/me"
+var meCommandLen = len(meCommand)
 func ParseCommand(text string) (int, string) {
 	startCommandRegex, _ := regexp.Compile("^/start")
+	meCommandRegex, _ := regexp.Compile("^/start")
+
 	if startCommandRegex.MatchString(text) {
 		return StartCommand, text[startCommandLen:]
+	} else if meCommandRegex.MatchString(text) {
+		return MeCommand, text[meCommandLen:]
 	}
 
 	return -1, ""
