@@ -29,7 +29,7 @@ type UserModel struct {
 	AuthorizationPayload string `json:"authorization_payload"`
 }
 
-func init()  {
+func initEnv()  {
 	_ = godotenv.Load(".env")
 	host := os.Getenv("HOST")
 	dbUser := os.Getenv("DB_USER")
@@ -68,6 +68,7 @@ type Chat struct {
 }
 
 func main() {
+	initEnv()
 	port := os.Getenv("PORT")
 	http.HandleFunc("/bot", func(w http.ResponseWriter, r *http.Request) {
 		var u Update
