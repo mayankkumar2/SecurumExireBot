@@ -94,6 +94,7 @@ func main() {
 			Secret string `json:"secret"`
 			Endpoint string `json:"endpoint"`
 			SecretName string `json:"secret_name"`
+			EndpointHash string `json:"endpoint_hash"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
@@ -115,7 +116,7 @@ func main() {
 			requestBody.Endpoint,
 			requestBody.SecretName)
 
-		SendBotCommandMessage(usr.ChatID, msgString,"/block "+requestBody.Endpoint, "block endpoint")
+		SendBotCommandMessage(usr.ChatID, msgString,"/block "+requestBody.EndpointHash, "block endpoint")
 		w.WriteHeader(http.StatusOK)
 	})
 	http.HandleFunc("/bot", func(w http.ResponseWriter, r *http.Request) {
@@ -398,9 +399,9 @@ func RespondCallbackQuery(queryID, text string) {
 	_, _ = http.Post(telegramApi, "application/json", &b)
 }
 
-func BlockEndpoint(webhook string, endpoint string, authSecret string) bool {
+func BlockEndpoint(webhook string, endpointHash string, authSecret string) bool {
 	var payload = map[string] string {
-		"endpoint": endpoint,
+		"endpoint_hash": endpointHash,
 		"authSecret": authSecret,
 	}
 	var b bytes.Buffer
