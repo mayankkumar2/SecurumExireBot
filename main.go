@@ -91,7 +91,7 @@ func main() {
 	http.HandleFunc("/report/leak", func(w http.ResponseWriter, r *http.Request) {
 		var requestBody struct{
 			Secret string `json:"secret"`
-			Endpoint string `json:"message"`
+			Endpoint string `json:"endpoint"`
 			SecretName string `json:"secret_name"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
@@ -129,6 +129,18 @@ func main() {
 			if command == BlockCommand {
 				fmt.Println("Block the endpoint: ",text)
 				RespondCallbackQuery(u.CallbackQuery.ID, "Signaling server reported of the action to take")
+				var usr UserModel
+				var err = DB.Where("chat_id", u.Message.Chat.ID).First(&usr).Error
+				if err != nil {
+					SendMessage(u.CallbackQuery.Chat.ID, "Oops! something went wrong!")
+					return
+				}
+				success := BlockEndpoint(usr.Webhook, text, usr.AuthKey)
+				if success {
+					SendMessage(usr.ChatID, "Hey! signal server reported that the endpoint was blocked!")
+				} else {
+					SendMessage(usr.ChatID, "Hey! unfortunately some error occurred and we couldn't block the endpoint! Please contact the system admin ASAP!")
+				}
 			}
 		} else {
 			command, text := ParseCommand(u.Message.Text)
@@ -286,7 +298,7 @@ func ParseCommand(text string) (int, string) {
 	} else if reKeyCommandRegex.MatchString(text) {
 		return ReKeyCommand, text[reKeyCommandLen:]
 	} else if blockCommandRegex.MatchString(text) {
-		return BlockCommand, text[blockCommandLen+1:]
+		return BlockCommand, strings.TrimSpace(text[blockCommandLen:])
 	}
 	return -1, ""
 }
@@ -371,4 +383,17 @@ func RespondCallbackQuery(queryID, text string) {
 	var b bytes.Buffer
 	_ = json.NewEncoder(&b).Encode(&msg)
 	_, _ = http.Post(telegramApi, "application/json", &b)
+}
+
+func BlockEndpoint(webhook string, endpoint string, authSecret string) bool {
+	var payload = map[string] string {
+		"endpoint": endpoint,
+	}
+	var b bytes.Buffer
+	_ = json.NewEncoder(&b).Encode(&payload)
+	response, err := http.Post(webhook+"/block/endpoint", "application/json", &b)
+	if err != nil {
+		return false
+	}
+	return response.StatusCode != http.StatusOK
 }
