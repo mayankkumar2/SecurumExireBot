@@ -81,6 +81,9 @@ func main() {
 	port := os.Getenv("PORT")
 	http.HandleFunc("/bot", func(w http.ResponseWriter, r *http.Request) {
 		var u Update
+		b, _ := ioutil.ReadAll(r.Body)
+		fmt.Println(string(b))
+		return
 
 		if err := json.NewDecoder(r.Body).Decode(&u); err != nil {
 			return
@@ -139,9 +142,6 @@ func main() {
 			IdentityString string `json:"identity_string"`
 		}
 
-		b, _ := ioutil.ReadAll(r.Body)
-		fmt.Println(string(b))
-		return
 
 		if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
