@@ -71,7 +71,7 @@ type Update struct {
 
 type CallbackQuery struct {
 	ID string `json:"id"`
-	Chat Chat `json:"chat"`
+	Message Message `json:"message"`
 	ChatInstance string `json:"chat_instance"`
 	Data string `json:"data"`
 }
@@ -132,7 +132,7 @@ func main() {
 				var usr UserModel
 				var err = DB.Where("chat_id", u.Message.Chat.ID).First(&usr).Error
 				if err != nil {
-					SendMessage(u.CallbackQuery.Chat.ID, "Oops! something went wrong!")
+					SendMessage(u.CallbackQuery.Message.Chat.ID, "Oops! something went wrong!")
 					return
 				}
 				success := BlockEndpoint(usr.Webhook, text, usr.AuthKey)
