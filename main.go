@@ -25,6 +25,7 @@ type UserModel struct {
 	ChatID int `json:"chat_id" gorm:"unique"`
 	AuthKey string `json:"-"`
 	WebHook string `json:"web_hook"`
+	AuthorizationPayload string `json:"authorization_payload"`
 }
 
 func init()  {
@@ -80,7 +81,11 @@ func main() {
 				AuthKey: GenerateUUID(),
 				UserID: uuid.New(),
 			}
-
+			err := DB.Create(c).Error
+			if err != nil {
+				SendMessage(c.ChatID, "Oops! something went wrong!")
+				return
+			}
 			s := fmt.Sprintf("Hey! your UID is %s and secret key is %s", c.UserID.String(), c.AuthKey)
 			SendMessage(u.Message.Chat.ID, s)
 			fmt.Println(text)
