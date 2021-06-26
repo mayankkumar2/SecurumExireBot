@@ -126,7 +126,9 @@ func main() {
 			return
 		}
 		fmt.Println("Received:", u)
+
 		if u.CallbackQuery != nil {
+			fmt.Println("Payload:", *u.CallbackQuery)
 			command, text := ParseCommand(u.CallbackQuery.Data)
 			if command == BlockCommand {
 				fmt.Println("Block the endpoint: ",text)
