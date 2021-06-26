@@ -10,6 +10,7 @@ import (
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -312,6 +313,11 @@ func SendMessage(chatID int, text string) {
 		"chat_id": {strconv.Itoa(chatID)},
 		"text": {text},
 	})
+	if err != nil{
+		fmt.Println(err)
+	}
+	b, _ := ioutil.ReadAll(response.Body)
+	fmt.Println(string(b))
 	if err != nil {
 		return
 	}
