@@ -388,6 +388,7 @@ func RespondCallbackQuery(queryID, text string) {
 func BlockEndpoint(webhook string, endpoint string, authSecret string) bool {
 	var payload = map[string] string {
 		"endpoint": endpoint,
+		"authSecret": authSecret,
 	}
 	var b bytes.Buffer
 	_ = json.NewEncoder(&b).Encode(&payload)
