@@ -9,6 +9,7 @@ import (
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -137,6 +138,11 @@ func main() {
 			Webhook string `json:"webhook"`
 			IdentityString string `json:"identity_string"`
 		}
+
+		b, _ := ioutil.ReadAll(r.Body)
+		fmt.Println(string(b))
+		return
+
 		if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
@@ -254,6 +260,25 @@ func SendMessage(chatID int, text string) {
 	}
 	defer response.Body.Close()
 }
+
+func SendBotCommandMessage(chatID int, text string) {
+	const telegramApiBaseUrl string = "https://api.telegram.org/bot"
+	const telegramApiSendMessage string = "/sendMessage"
+
+	var telegramApi = telegramApiBaseUrl + token + telegramApiSendMessage
+	response, err := http.PostForm(telegramApi, url.Values{
+			"chat_id": {strconv.Itoa(chatID)},
+		"text": {text},
+		"reply_markup": {
+
+		},
+	})
+	if err != nil {
+		return
+	}
+	defer response.Body.Close()
+}
+
 
 func GenerateUUID() string {
 	uid := uuid.New().String()
