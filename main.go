@@ -96,6 +96,7 @@ func main() {
 			SecretName string `json:"secret_name"`
 			EndpointHash string `json:"endpoint_hash"`
 		}
+		fmt.Println(requestBody)
 		if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
