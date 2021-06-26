@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -105,10 +106,12 @@ func main() {
 
 
 var startCommand = "/start"
-var startCommandLen = len("/start")
+var startCommandLen = len(startCommand)
+
 
 func ParseCommand(text string) (int, string) {
-	if text[:startCommandLen] == startCommand {
+	startCommandRegex, _ := regexp.Compile("^/start")
+	if startCommandRegex.MatchString(text) {
 		return StartCommand, text[startCommandLen:]
 	}
 
