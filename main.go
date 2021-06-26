@@ -28,7 +28,7 @@ func init()  {
 	port := os.Getenv("DB_PORT")
 	dbName := os.Getenv("DB_NAME")
 	token = os.Getenv("BOT_TOKEN")
-	dbStr := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
+	dbStr := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=require",
 		host,
 		dbUser,
 		userPass,
