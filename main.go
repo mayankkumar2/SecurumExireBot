@@ -75,6 +75,9 @@ func main() {
 			return
 		}
 
+
+		fmt.Println("Received:", u)
+
 		command, text := ParseCommand(u.Message.Text)
 		if command == StartCommand {
 			var c = &UserModel{
@@ -93,7 +96,6 @@ func main() {
 		}
 
 
-		fmt.Println(u)
 	})
 
 	fmt.Println("listening at port... " + port)
