@@ -338,6 +338,7 @@ func SendBotCommandMessage(chatID int, text string, command string, buttonText s
 	}
 	b, _ := json.Marshal(&message)
 
+
 	response, err := http.PostForm(telegramApi, url.Values{
 			"chat_id": {strconv.Itoa(chatID)},
 		"text": {text},
@@ -345,6 +346,12 @@ func SendBotCommandMessage(chatID int, text string, command string, buttonText s
 			string(b),
 		},
 	})
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	bo, _ := ioutil.ReadAll(response.Body)
+	fmt.Println(string(bo))
 	if err != nil {
 		return
 	}
