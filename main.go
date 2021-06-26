@@ -134,6 +134,8 @@ func main() {
 		var requestBody struct{
 			UID uuid.UUID `json:"uid"`
 			Secret string `json:"secret"`
+			Webhook string `json:"webhook"`
+			IdentityString string `json:"identity_string"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
@@ -152,9 +154,18 @@ func main() {
 		}
 
 		if usr.AuthKey != requestBody.Secret {
+			SendMessage(usr.ChatID, "Unsuccessful attempt made for login! consider /reKey if it wasn't you.")
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
+
+		usr.Webhook = requestBody.Webhook
+		usr.AuthorizationPayload = requestBody.IdentityString
+		if err := DB.Updates(&usr).Error; err != nil {
+			SendMessage(usr.ChatID, "We were unable to update the webhook and identity string!")
+			return
+		}
+
 
 		tokenizer := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 			"uid": requestBody.UID,
@@ -166,10 +177,11 @@ func main() {
 			fmt.Println(err)
 			return
 		}
+
+		SendMessage(usr.ChatID, "Login successful! Webhook: " + requestBody.Webhook)
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(token))
 	})
-
 	http.HandleFunc("/send", func(w http.ResponseWriter, r *http.Request) {
 		var requestBody struct{
 			Secret string `json:"secret"`
