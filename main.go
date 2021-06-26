@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,7 +10,6 @@ import (
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -22,7 +22,7 @@ const (
 	StartCommand int = iota
 	MeCommand
 	ReKeyCommand
-
+	BlockCommand
 )
 
 var DB *gorm.DB
@@ -66,6 +66,14 @@ func initEnv()  {
 type Update struct {
 	UpdateID int `json:"update_id"`
 	Message Message `json:"message"`
+	CallbackQuery *CallbackQuery `json:"callback_query"`
+}
+
+type CallbackQuery struct {
+	ID string `json:"id"`
+	Chat Chat `json:"chat"`
+	ChatInstance string `json:"chat_instance"`
+	Data string `json:"data"`
 }
 
 type Message struct {
@@ -78,60 +86,65 @@ type Chat struct {
 
 func main() {
 	initEnv()
+
 	port := os.Getenv("PORT")
 	http.HandleFunc("/bot", func(w http.ResponseWriter, r *http.Request) {
 		var u Update
-		b, _ := ioutil.ReadAll(r.Body)
-		fmt.Println(string(b))
-		return
 
 		if err := json.NewDecoder(r.Body).Decode(&u); err != nil {
 			return
 		}
 		fmt.Println("Received:", u)
-
-		command, text := ParseCommand(u.Message.Text)
-		if command == StartCommand {
-			var c = &UserModel{
-				ChatID: u.Message.Chat.ID,
-				AuthKey: GenerateUUID(),
-				UserID: uuid.New(),
+		if u.CallbackQuery != nil {
+			command, text := ParseCommand(u.CallbackQuery.Data)
+			if command == BlockCommand {
+				fmt.Println("Block the endpoint: ",text)
+				RespondCallbackQuery(u.CallbackQuery.ID, "Signaling server reported of the action to take")
 			}
-			err := DB.Create(c).Error
-			if err != nil {
-				SendMessage(c.ChatID, "Oops! something went wrong!")
-				return
+		} else {
+			command, text := ParseCommand(u.Message.Text)
+			if command == StartCommand {
+				var c = &UserModel{
+					ChatID:  u.Message.Chat.ID,
+					AuthKey: GenerateUUID(),
+					UserID:  uuid.New(),
+				}
+				err := DB.Create(c).Error
+				if err != nil {
+					SendMessage(c.ChatID, "Oops! something went wrong!")
+					return
+				}
+				s := fmt.Sprintf("Hey! your UID is %s and secret key is %s", c.UserID.String(), c.AuthKey)
+				SendMessage(u.Message.Chat.ID, s)
+				fmt.Println(text)
+			} else if command == MeCommand {
+				var usr UserModel
+				var err = DB.Where("chat_id", u.Message.Chat.ID).First(&usr).Error
+				if err != nil {
+					SendMessage(u.Message.Chat.ID, "Oops! something went wrong!")
+					return
+				}
+				s := fmt.Sprintf("Hey! your UID is %s and secret key is %s", usr.UserID.String(), usr.AuthKey)
+				SendMessage(u.Message.Chat.ID, s)
+				fmt.Println(text)
+			} else if command == ReKeyCommand {
+				var usr UserModel
+				var err = DB.Where("chat_id", u.Message.Chat.ID).First(&usr).Error
+				if err != nil {
+					SendMessage(u.Message.Chat.ID, "Oops! something went wrong!")
+					return
+				}
+				usr.AuthKey = GenerateUUID()
+				usr.Webhook = ""
+				usr.AuthorizationPayload = ""
+				if err := DB.Updates(&usr).Error; err != nil {
+					SendMessage(u.Message.Chat.ID, "Oops! something went wrong!")
+					return
+				}
+				s := fmt.Sprintf("Hey! your UID is %s and secret key is %s", usr.UserID.String(), usr.AuthKey)
+				SendMessage(u.Message.Chat.ID, s)
+				fmt.Println(text)
 			}
-			s := fmt.Sprintf("Hey! your UID is %s and secret key is %s", c.UserID.String(), c.AuthKey)
-			SendMessage(u.Message.Chat.ID, s)
-			fmt.Println(text)
-		} else if command == MeCommand {
-			var usr UserModel
-			var err = DB.Where("chat_id", u.Message.Chat.ID).First(&usr).Error
-			if err != nil {
-				SendMessage(u.Message.Chat.ID, "Oops! something went wrong!")
-				return
-			}
-			s := fmt.Sprintf("Hey! your UID is %s and secret key is %s", usr.UserID.String(), usr.AuthKey)
-			SendMessage(u.Message.Chat.ID, s)
-			fmt.Println(text)
-		} else if command == ReKeyCommand {
-			var usr UserModel
-			var err = DB.Where("chat_id", u.Message.Chat.ID).First(&usr).Error
-			if err != nil {
-				SendMessage(u.Message.Chat.ID, "Oops! something went wrong!")
-				return
-			}
-			usr.AuthKey = GenerateUUID()
-			usr.Webhook = ""
-			usr.AuthorizationPayload = ""
-			if err := DB.Updates(&usr).Error; err != nil {
-				SendMessage(u.Message.Chat.ID, "Oops! something went wrong!")
-				return
-			}
-			s := fmt.Sprintf("Hey! your UID is %s and secret key is %s", usr.UserID.String(), usr.AuthKey)
-			SendMessage(u.Message.Chat.ID, s)
-			fmt.Println(text)
 		}
 	})
 	http.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
@@ -141,8 +154,7 @@ func main() {
 			Webhook string `json:"webhook"`
 			IdentityString string `json:"identity_string"`
 		}
-
-
+		
 		if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
@@ -230,19 +242,23 @@ var meCommandLen = len(meCommand)
 var reKeyCommand = "/reKey"
 var reKeyCommandLen = len(reKeyCommand)
 
+var blockCommand = "/block"
+var blockCommandLen = len(blockCommand)
+
 func ParseCommand(text string) (int, string) {
 	startCommandRegex, _ := regexp.Compile("^/start")
 	meCommandRegex, _ := regexp.Compile("^/me")
 	reKeyCommandRegex, _ := regexp.Compile("^/reKey")
-
+	blockCommandRegex, _ := regexp.Compile("^/block")
 	if startCommandRegex.MatchString(text) {
 		return StartCommand, text[startCommandLen:]
 	} else if meCommandRegex.MatchString(text) {
 		return MeCommand, text[meCommandLen:]
 	} else if reKeyCommandRegex.MatchString(text) {
 		return ReKeyCommand, text[reKeyCommandLen:]
+	} else if blockCommandRegex.MatchString(text) {
+		return BlockCommand, text[blockCommandLen+1:]
 	}
-
 	return -1, ""
 }
 
@@ -261,16 +277,25 @@ func SendMessage(chatID int, text string) {
 	defer response.Body.Close()
 }
 
-func SendBotCommandMessage(chatID int, text string) {
+func SendBotCommandMessage(chatID int, text string, command string, buttonText string) {
 	const telegramApiBaseUrl string = "https://api.telegram.org/bot"
 	const telegramApiSendMessage string = "/sendMessage"
 
 	var telegramApi = telegramApiBaseUrl + token + telegramApiSendMessage
+	var message = map[string][][]map[string]string{
+		"inline_keyboard": {
+			{
+				{"text": buttonText, "callback_data": command},
+			},
+		},
+	}
+	b, _ := json.Marshal(&message)
+
 	response, err := http.PostForm(telegramApi, url.Values{
 			"chat_id": {strconv.Itoa(chatID)},
 		"text": {text},
 		"reply_markup": {
-
+			string(b),
 		},
 	})
 	if err != nil {
@@ -278,6 +303,8 @@ func SendBotCommandMessage(chatID int, text string) {
 	}
 	defer response.Body.Close()
 }
+
+
 
 
 func GenerateUUID() string {
@@ -301,4 +328,18 @@ func AuthenticateRequestSecret(sec string) (string, error){
 	} else {
 		return "", errors.New("error: token invalid")
 	}
+}
+
+func RespondCallbackQuery(queryID, text string) {
+	const telegramApiBaseUrl string = "https://api.telegram.org/bot"
+	const path string = "/answerCallbackQuery"
+
+	var telegramApi = telegramApiBaseUrl + token + path
+	var msg = map[string]string {
+		"callback_query_id": queryID,
+		"text": text,
+	}
+	var b bytes.Buffer
+	_ = json.NewEncoder(&b).Encode(&msg)
+	_, _ = http.Post(telegramApi, "application/json", &b)
 }
