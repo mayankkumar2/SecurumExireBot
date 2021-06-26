@@ -43,7 +43,8 @@ func init()  {
 		userPass,
 		dbName,
 		port)
-	DB, err := gorm.Open(postgres.Open(dbStr), &gorm.Config{})
+	var err error
+	DB, err = gorm.Open(postgres.Open(dbStr), &gorm.Config{})
 	if err != nil {
 		panic(err)
 	}
