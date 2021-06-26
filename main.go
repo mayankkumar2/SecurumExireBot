@@ -395,5 +395,5 @@ func BlockEndpoint(webhook string, endpoint string, authSecret string) bool {
 	if err != nil {
 		return false
 	}
-	return response.StatusCode != http.StatusOK
+	return response.StatusCode == http.StatusOK
 }
