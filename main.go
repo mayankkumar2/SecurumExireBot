@@ -8,7 +8,14 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"net/http"
+	"net/url"
 	"os"
+	"strconv"
+	"strings"
+)
+
+const (
+	StartCommand int = 1
 )
 
 var DB *gorm.DB
@@ -51,6 +58,10 @@ type Update struct {
 
 type Message struct {
 	Text string `json:"text"`
+	Chat Chat `json:"chat"`
+}
+type Chat struct {
+	ID int `json:"id"`
 }
 
 func main() {
@@ -62,8 +73,21 @@ func main() {
 			return
 		}
 
+		command, text := ParseCommand(u.Message.Text)
+		if command == StartCommand {
+			var c = &UserModel{
+				ChatID: u.Message.Chat.ID,
+				AuthKey: GenerateUUID(),
+				UserID: uuid.New(),
+			}
+
+			s := fmt.Sprintf("Hey! your UID is %s and secret key is %s", c.UserID.String(), c.AuthKey)
+			SendMessage(u.Message.Chat.ID, s)
+			fmt.Println(text)
+		}
+
+
 		fmt.Println(u)
-		_, _ = w.Write([]byte("Hi"))
 	})
 
 	fmt.Println("listening at port... " + port)
@@ -72,4 +96,36 @@ func main() {
 	if err != nil {
 		fmt.Println("error: " + err.Error())
 	}
+}
+
+
+var startCommand = "/start"
+var startCommandLen = len("/start")
+
+func ParseCommand(text string) (int, string) {
+	if text[:startCommandLen] == startCommand {
+		return StartCommand, text[startCommandLen:]
+	}
+
+	return -1, ""
+}
+
+func SendMessage(chatID int, text string) {
+	const telegramApiBaseUrl string = "https://api.telegram.org/bot"
+	const telegramApiSendMessage string = "/sendMessage"
+
+	var telegramApi = telegramApiBaseUrl + token + telegramApiSendMessage
+	response, err := http.PostForm(telegramApi, url.Values{
+		"chat_id": {strconv.Itoa(chatID)},
+		"text": {text},
+	})
+	if err != nil {
+		return
+	}
+	defer response.Body.Close()
+}
+
+func GenerateUUID() string {
+	uid := uuid.New().String()
+	return strings.ReplaceAll(uid, "-", "")
 }
