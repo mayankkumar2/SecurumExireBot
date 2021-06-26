@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
@@ -24,11 +26,12 @@ const (
 
 var DB *gorm.DB
 var token string
+var secret string
 type UserModel struct {
-	UserID uuid.UUID `json:"user_id" gorm:"type:uuid"`
+	UserID uuid.UUID `json:"user_id" gorm:"type:uuid;primaryKey"`
 	ChatID int `json:"chat_id" gorm:"unique"`
 	AuthKey string `json:"-"`
-	WebHook string `json:"web_hook"`
+	Webhook string `json:"web_hook"`
 	AuthorizationPayload string `json:"authorization_payload"`
 }
 
@@ -40,6 +43,7 @@ func initEnv()  {
 	port := os.Getenv("DB_PORT")
 	dbName := os.Getenv("DB_NAME")
 	token = os.Getenv("BOT_TOKEN")
+	secret = os.Getenv("SECRET")
 	dbStr := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=require",
 		host,
 		dbUser,
@@ -55,6 +59,7 @@ func initEnv()  {
 	if err != nil {
 		fmt.Println("Auto migration failed!")
 	}
+
 }
 
 type Update struct {
@@ -98,7 +103,7 @@ func main() {
 			fmt.Println(text)
 		} else if command == MeCommand {
 			var usr UserModel
-			var err = DB.First(&usr).Where("chat_id", u.Message.Chat.ID).Error
+			var err = DB.Where("chat_id", u.Message.Chat.ID).First(&usr).Error
 			if err != nil {
 				SendMessage(u.Message.Chat.ID, "Oops! something went wrong!")
 				return
@@ -108,13 +113,13 @@ func main() {
 			fmt.Println(text)
 		} else if command == ReKeyCommand {
 			var usr UserModel
-			var err = DB.First(&usr).Where("chat_id", u.Message.Chat.ID).Error
+			var err = DB.Where("chat_id", u.Message.Chat.ID).First(&usr).Error
 			if err != nil {
 				SendMessage(u.Message.Chat.ID, "Oops! something went wrong!")
 				return
 			}
 			usr.AuthKey = GenerateUUID()
-			usr.WebHook = ""
+			usr.Webhook = ""
 			usr.AuthorizationPayload = ""
 			if err := DB.Updates(&usr).Error; err != nil {
 				SendMessage(u.Message.Chat.ID, "Oops! something went wrong!")
@@ -124,6 +129,69 @@ func main() {
 			SendMessage(u.Message.Chat.ID, s)
 			fmt.Println(text)
 		}
+	})
+	http.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
+		var requestBody struct{
+			UID uuid.UUID `json:"uid"`
+			Secret string `json:"secret"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		fmt.Println(requestBody)
+		var usr UserModel
+
+		var err = DB.Where(&UserModel{
+			UserID: requestBody.UID,
+		}).First(&usr).Error
+
+		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		if usr.AuthKey != requestBody.Secret {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		tokenizer := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+			"uid": requestBody.UID,
+		})
+
+		token, err := tokenizer.SignedString([]byte(secret))
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Println(err)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(token))
+	})
+
+	http.HandleFunc("/send", func(w http.ResponseWriter, r *http.Request) {
+		var requestBody struct{
+			Secret string `json:"secret"`
+			Message string `json:"message"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		uid, err := AuthenticateRequestSecret(requestBody.Secret)
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		var usr UserModel
+		err = DB.Where("user_id = ?", uid).First(&usr).Error
+		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		SendMessage(usr.ChatID, requestBody.Message)
+		w.WriteHeader(http.StatusOK)
 	})
 
 	fmt.Println("listening at port... " + port)
@@ -178,4 +246,22 @@ func SendMessage(chatID int, text string) {
 func GenerateUUID() string {
 	uid := uuid.New().String()
 	return strings.ReplaceAll(uid, "-", "")
+}
+
+func AuthenticateRequestSecret(sec string) (string, error){
+	token, err := jwt.Parse(sec, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(secret), nil
+	})
+	if err != nil {
+		return "", err
+	}
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		fmt.Println(claims["uid"].(string))
+		return claims["uid"].(string), nil
+	} else {
+		return "", errors.New("error: token invalid")
+	}
 }
