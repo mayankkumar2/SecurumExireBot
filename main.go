@@ -126,7 +126,7 @@ var meCommand = "/me"
 var meCommandLen = len(meCommand)
 func ParseCommand(text string) (int, string) {
 	startCommandRegex, _ := regexp.Compile("^/start")
-	meCommandRegex, _ := regexp.Compile("^/start")
+	meCommandRegex, _ := regexp.Compile("^/me")
 
 	if startCommandRegex.MatchString(text) {
 		return StartCommand, text[startCommandLen:]
