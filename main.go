@@ -97,7 +97,7 @@ func main() {
 
 	fmt.Println("listening at port... " + port)
 
-	err := http.ListenAndServe(":"+port, nil)
+	err := http.ListenAndServe("0.0.0.0:"+port, nil)
 	if err != nil {
 		fmt.Println("error: " + err.Error())
 	}
