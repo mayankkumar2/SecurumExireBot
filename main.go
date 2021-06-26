@@ -135,7 +135,7 @@ func main() {
 					SendMessage(u.CallbackQuery.Message.Chat.ID, "Oops! something went wrong!")
 					return
 				}
-				success := BlockEndpoint(usr.Webhook, text, usr.AuthKey)
+				success := BlockEndpoint(usr.Webhook, text, usr.AuthorizationPayload)
 				if success {
 					SendMessage(usr.ChatID, "Hey! signal server reported that the endpoint was blocked!")
 				} else {
