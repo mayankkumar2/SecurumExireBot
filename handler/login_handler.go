@@ -36,7 +36,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if usr.AuthKey != requestBody.Secret {
-		bot.SendMessage(usr.ChatID, "Unsuccessful attempt made for login! consider /reKey if it wasn't you.")
+		bot.SendMessage(usr.ChatID, "Unsuccessful attempt made for login! consider /rekey if it wasn't you.")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
