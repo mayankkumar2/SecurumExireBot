@@ -28,7 +28,7 @@ var startCommandLen = len(startCommand)
 var meCommand = "/me"
 var meCommandLen = len(meCommand)
 
-var reKeyCommand = "/reKey"
+var reKeyCommand = "/rekey"
 var reKeyCommandLen = len(reKeyCommand)
 
 var blockCommand = "/block"
@@ -37,7 +37,7 @@ var blockCommandLen = len(blockCommand)
 func ParseCommand(text string) (int, string) {
 	startCommandRegex, _ := regexp.Compile("^/start")
 	meCommandRegex, _ := regexp.Compile("^/me")
-	reKeyCommandRegex, _ := regexp.Compile("^/reKey")
+	reKeyCommandRegex, _ := regexp.Compile("^/rekey")
 	blockCommandRegex, _ := regexp.Compile("^/block")
 	if startCommandRegex.MatchString(text) {
 		return StartCommand, text[startCommandLen:]

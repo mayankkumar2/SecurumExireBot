@@ -70,7 +70,7 @@ func BotHandler(_ http.ResponseWriter, r *http.Request) {
 				bot.SendMessage(u.Message.Chat.ID, "Oops! something went wrong!")
 				return
 			}
-			usr.AuthKey = bot.GenerateUUID()
+			usr.AuthKey = bot.GenerateUUID()+bot.GenerateUUID()
 			usr.Webhook = ""
 			usr.AuthorizationPayload = ""
 			if err := db.DB.Updates(&usr).Error; err != nil {
