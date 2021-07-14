@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 	"net/http"
 )
 
@@ -47,11 +46,8 @@ func BotHandler(_ http.ResponseWriter, r *http.Request) {
 				UserID:  uuid.New(),
 			}
 			err := db.DB.Create(c).Error
-			if err == gorm.ErrRecordNotFound{
-				bot.SendMessage(c.ChatID, "Hey you are already a member! Get the required details with /me")
-				return
-			} else if err != nil {
-				bot.SendMessage(c.ChatID, "Oops! something went wrong!")
+			if err != nil {
+				bot.SendMessage(c.ChatID, "Hey you might already be a member! Get the required details with /me or try again!")
 				return
 			}
 			s := fmt.Sprintf("Hey! your UID is %s and secret key is %s", c.UserID.String(), c.AuthKey)
